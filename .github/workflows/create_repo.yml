@@ -78,20 +78,27 @@ jobs:
       - name: Check branches
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ORG_NAME: Cogip-AgSUS
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
           gh api /repos/$ORG_NAME/$REPO_NAME/branches
       
-      - name: Protect main branch
+      - name: Protect default branch
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ORG_NAME: Cogip-AgSUS
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
 
+          sleep 3
+      
+          DEFAULT_BRANCH=$(gh repo view "$ORG_NAME/$REPO_NAME" --json defaultBranchRef -q .defaultBranchRef.name)
+      
+          echo "Default branch: $DEFAULT_BRANCH"
+      
           gh api \
             --method PUT \
-            /repos/$ORG_NAME/$REPO_NAME/branches/main/protection \
+            /repos/$ORG_NAME/$REPO_NAME/branches/$DEFAULT_BRANCH/protection \
             -H "Accept: application/vnd.github+json" \
             -f required_status_checks='null' \
             -f enforce_admins=true \
