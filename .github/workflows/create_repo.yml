@@ -71,23 +71,6 @@ jobs:
             --${{ github.event.inputs.visibility }} \
             --description "${{ github.event.inputs.descricao || 'Sem descrição' }}" \
             --add-readme
-      
-      - name: Protect main branch
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          ORG_NAME: Cogip-AgSUS
-        run: |
-          REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
-
-          gh api \
-            --method PUT \
-            /repos/$ORG_NAME/$REPO_NAME/branches/main/protection \
-            -H "Accept: application/vnd.github+json" \
-            -f required_status_checks='null' \
-            -f enforce_admins=true \
-            -f required_pull_request_reviews.dismiss_stale_reviews=true \
-            -f required_pull_request_reviews.required_approving_review_count=1 \
-            -f restrictions='null'
           
       - name: Summary
         run: |
