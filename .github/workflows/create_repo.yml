@@ -74,14 +74,6 @@ jobs:
             --${{ github.event.inputs.visibility }} \
             --description "${{ github.event.inputs.descricao }}" \
             --add-readme
-
-      - name: Check branches
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          ORG_NAME: Cogip-AgSUS
-        run: |
-          REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
-          gh api /repos/$ORG_NAME/$REPO_NAME/branches
       
       - name: Protect default branch
         env:
