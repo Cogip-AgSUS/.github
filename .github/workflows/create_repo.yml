@@ -77,23 +77,27 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ORG_NAME: Cogip-AgSUS
         run: |
-          REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
-      
-          # wait repo to exist
-          for i in {1..15}; do
+          REPO_NAME="COGIP_teste"
+
+          for i in {1..20}; do
             if gh repo view "$ORG_NAME/$REPO_NAME" >/dev/null 2>&1; then
-              echo "Repo ready"
               break
             fi
-      
-            echo "Waiting repo creation..."
-            sleep 2
+            sleep 3
           done
-      
+          
+          sleep 10
+          
           DEFAULT_BRANCH=$(gh api repos/$ORG_NAME/$REPO_NAME --jq .default_branch)
-      
-          echo "Default branch: $DEFAULT_BRANCH"
-      
+          
+          # wait branch ref
+          for i in {1..20}; do
+            if gh api repos/$ORG_NAME/$REPO_NAME/git/ref/heads/$DEFAULT_BRANCH >/dev/null 2>&1; then
+              break
+            fi
+            sleep 3
+          done
+          
           gh api \
             --method PUT \
             /repos/$ORG_NAME/$REPO_NAME/branches/$DEFAULT_BRANCH/protection \
