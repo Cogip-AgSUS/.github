@@ -77,8 +77,8 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ORG_NAME: Cogip-AgSUS
         run: |
-          REPO_NAME="COGIP_teste"
-
+          REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
+          
           for i in {1..20}; do
             if gh repo view "$ORG_NAME/$REPO_NAME" >/dev/null 2>&1; then
               break
@@ -90,24 +90,29 @@ jobs:
           
           DEFAULT_BRANCH=$(gh api repos/$ORG_NAME/$REPO_NAME --jq .default_branch)
           
-          # wait branch ref
-          for i in {1..20}; do
-            if gh api repos/$ORG_NAME/$REPO_NAME/git/ref/heads/$DEFAULT_BRANCH >/dev/null 2>&1; then
-              break
+          for i in {1..30}; do
+            echo "trying protection API..."
+          
+            if gh api \
+              --method PUT \
+              /repos/$ORG_NAME/$REPO_NAME/branches/$DEFAULT_BRANCH/protection \
+              -H "Accept: application/vnd.github+json" \
+              -f required_status_checks='null' \
+              -f enforce_admins=true \
+              -f required_pull_request_reviews.dismiss_stale_reviews=true \
+              -f required_approving_review_count=1 \
+              -f restrictions='null'; then
+          
+              echo "Protection applied"
+              exit 0
             fi
-            sleep 3
+          
+            sleep $((i * 2))
           done
           
-          gh api \
-            --method PUT \
-            /repos/$ORG_NAME/$REPO_NAME/branches/$DEFAULT_BRANCH/protection \
-            -H "Accept: application/vnd.github+json" \
-            -f required_status_checks='null' \
-            -f enforce_admins=true \
-            -f required_pull_request_reviews.dismiss_stale_reviews=true \
-            -f required_pull_request_reviews.required_approving_review_count=1 \
-            -f restrictions='null'
-
+          echo "Failed to apply branch protection"
+          exit 1
+          
       - name: Summary
         run: |
           echo "✅ Repositório criado com sucesso"
