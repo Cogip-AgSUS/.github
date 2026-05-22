@@ -86,8 +86,6 @@ jobs:
             --${{ github.event.inputs.visibility }} \
             --description "${{ github.event.inputs.descricao || 'Sem descrição' }}" \
             --add-readme
+            echo "✅ Repositório criado com sucesso"
+            echo "📦 Nome: ${{ steps.normalize.outputs.repo_name }}"
           
-      - name: Summary
-        run: |
-          echo "✅ Repositório criado com sucesso"
-          echo "📦 Nome: ${{ steps.normalize.outputs.repo_name }}"
