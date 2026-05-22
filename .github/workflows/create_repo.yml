@@ -71,7 +71,7 @@ jobs:
       
           if gh api "/repos/$ORG_NAME/$REPO_NAME" >/dev/null 2>&1; then
             echo "❌ Repositório já existe"
-            exit 1
+            exit 0
           fi
       
           echo "✅ OK - não existe"
