@@ -59,6 +59,7 @@ jobs:
           fi
 
           echo "✅ Nome válido"
+          
       - name: Check if repository already exists
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -70,7 +71,7 @@ jobs:
       
           if gh api "/repos/$ORG_NAME/$REPO_NAME" >/dev/null 2>&1; then
             echo "❌ Repositório já existe: $ORG_NAME/$REPO_NAME"
-            exit 1
+            exit 0
           else
             echo "✅ Repositório disponível"
           fi
