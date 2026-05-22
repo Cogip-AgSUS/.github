@@ -28,11 +28,15 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: write
+      contents: read
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
       - name: Normalize names
         id: normalize
@@ -61,7 +65,7 @@ jobs:
 
       - name: Create repository
         env:
-          GH_TOKEN: ${{ secrets.ORG_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ORG_NAME: SUA_ORGANIZACAO
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
@@ -73,7 +77,7 @@ jobs:
 
       - name: Protect main branch
         env:
-          GH_TOKEN: ${{ secrets.ORG_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ORG_NAME: SUA_ORGANIZACAO
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
@@ -81,6 +85,7 @@ jobs:
           gh api \
             --method PUT \
             /repos/$ORG_NAME/$REPO_NAME/branches/main/protection \
+            -H "Accept: application/vnd.github+json" \
             -f required_status_checks='null' \
             -f enforce_admins=true \
             -f required_pull_request_reviews.dismiss_stale_reviews=true \
