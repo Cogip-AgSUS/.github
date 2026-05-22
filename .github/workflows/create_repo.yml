@@ -27,10 +27,6 @@ jobs:
   create-repository:
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: read
-      administration: write
-
     steps:
       - name: Generate GitHub App token
         id: app-token
