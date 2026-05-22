@@ -68,9 +68,13 @@ jobs:
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
       
+          echo "🔎 Verificando $ORG_NAME/$REPO_NAME"
+      
           if gh api "/repos/$ORG_NAME/$REPO_NAME" >/dev/null 2>&1; then
+            echo "❌ Repositório já existe"
             echo "exists=true" >> $GITHUB_OUTPUT
           else
+            echo "✅ Repositório disponível"
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
     
