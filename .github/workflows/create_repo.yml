@@ -61,22 +61,21 @@ jobs:
           echo "✅ Nome válido"
           
       - name: Check repository existence
+        id: check_repo
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ORG_NAME: Cogip-AgSUS
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
       
-          echo "🔎 Verificando repo $ORG_NAME/$REPO_NAME"
-      
           if gh api "/repos/$ORG_NAME/$REPO_NAME" >/dev/null 2>&1; then
-            echo "❌ Repositório já existe"
-            exit 0
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
           fi
-      
-          echo "✅ OK - não existe"
     
       - name: Create repository
+        if: steps.check_repo.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ORG_NAME: Cogip-AgSUS
