@@ -29,7 +29,6 @@ jobs:
 
     permissions:
       contents: write
-      repositories: write
 
     steps:
       - name: Normalize names
