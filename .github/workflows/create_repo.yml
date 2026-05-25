@@ -28,7 +28,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 🧼 Normaliza nome
       - name: Normalize names
         id: normalize
         run: |
@@ -40,7 +39,6 @@ jobs:
           REPO_NAME="COGIP_${PROJETO}"
           echo "repo_name=$REPO_NAME" >> $GITHUB_OUTPUT
 
-      # 🧪 valida nome
       - name: Validate repository name
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
@@ -51,7 +49,6 @@ jobs:
             exit 1
           fi
 
-      # 🔐 Token 1: Criado no escopo global da Organização para a criação do repo
       - name: Generate GitHub App token for creation
         id: app-token-create
         uses: actions/create-github-app-token@v1
@@ -59,8 +56,7 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: Cogip-AgSUS
-
-      # 🏗️ cria repo
+          
       - name: Create repository
         env:
           GH_TOKEN: ${{ steps.app-token-create.outputs.token }}
@@ -73,7 +69,6 @@ jobs:
             --description "${{ github.event.inputs.descricao || 'Sem descrição' }}" \
             --add-readme
 
-      # ⏳ espera propagação
       - name: Wait repo availability
         env:
           GH_TOKEN: ${{ steps.app-token-create.outputs.token }}
@@ -97,52 +92,13 @@ jobs:
           owner: Cogip-AgSUS
           repositories: ${{ steps.normalize.outputs.repo_name }}
 
-      # 📄 Prepara os arquivos de Políticas (Local e Nuvem)
-      - name: Inject Commit Policies (Local Hooks & GitHub Actions)
+      - name: Inject Commit Policies
         env:
           GH_TOKEN: ${{ steps.app-token-write.outputs.token }}
           ORG_NAME: Cogip-AgSUS
           
-          # 1. CONTEÚDO DO GITHUB ACTIONS (Checagem na Nuvem)
-          CLOUD_WORKFLOW: |
-            name: Commit Policy (Cloud)
-            on:
-              push:
-                branches: [ "**" ]
-              pull_request:
-                branches: [ "**" ]
-            jobs:
-              validate:
-                runs-on: ubuntu-latest
-                steps:
-                  - uses: actions/checkout@v4
-                    with:
-                      fetch-depth: 0
-                  - name: Validate Commit Messages
-                    run: |
-                      CONVENTIONAL_COMMIT_REGEX='^(feat|fix|docs|style|refactor|test|chore|build|ci|perf|revert)(\([a-zA-Z0-9_.-]+\))?(!)?:\s.*$'
-                      if [ "${{ '${{ github.event_name }}' }}" = "pull_request" ]; then
-                        git fetch origin ${{ '${{ github.event.pull_request.base.ref }}' }} --depth=1000
-                        COMMITS=$(git log --format=%s origin/${{ '${{ github.event.pull_request.base.ref }}' }}..HEAD)
-                      else
-                        if [ "${{ '${{ github.event.before }}' }}" = "0000000000000000000000000000000000000000" ]; then
-                          COMMITS=$(git log -1 --format=%s)
-                        else
-                          COMMITS=$(git log --format=%s ${{ '${{ github.event.before }}' }}..${{ '${{ github.event.after }}' }})
-                        fi
-                      fi
-                      if [ -z "$COMMITS" ]; then exit 0; fi
-                      while read -r COMMIT_MSG; do
-                        if [ -z "$COMMIT_MSG" ]; then continue; fi
-                        if ! [[ "$COMMIT_MSG" =~ $CONVENTIONAL_COMMIT_REGEX ]]; then
-                          echo "❌ ERRO: Mensagem fora do padrão convencional: \"$COMMIT_MSG\""
-                          exit 1
-                        fi
-                      done <<< "$COMMITS"
-
-          # 2. CONTEÚDO DO SEU SCRIPT (Checagem Local no Terminal)
           LOCAL_HOOK: |
-            #!/bin/sh
+            #!/usr/bin/env bash
             COMMIT_MSG_FILE=$1
             COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
             CONVENTIONAL_COMMIT_REGEX='^(feat|fix|docs|style|refactor|test|chore|build|ci|perf|revert)(\([a-zA-Z0-9_.-]+\))?(!)?:\s.*$'
@@ -150,9 +106,7 @@ jobs:
             FAILED=0
             
             if ! [[ $COMMIT_MSG =~ $CONVENTIONAL_COMMIT_REGEX ]]; then
-                echo "❌ ERRO: A mensagem de commit não segue o formato padrão."
-                echo "O formato correto é obrigatório: <tipo>(<escopo opcional>): <descrição>"
-                echo "Tipos válidos: feat, fix, docs, style, refactor, test, chore, build, ci, perf, revert"
+                echo "A mensagem de commit não segue o formato padrão."
                 FAILED=1
             fi
             if [ $FAILED -ne 0 ]; then
@@ -185,27 +139,17 @@ jobs:
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
           
-          # Criando os arquivos temporariamente no runner
-          mkdir -p .github/workflows .githooks
-          echo "$CLOUD_WORKFLOW" > .github/workflows/commit-policy.yml
+          mkdir -p .githooks
           echo "$LOCAL_HOOK" > .githooks/commit-msg
 
-          # 🚀 1. Sobe o arquivo do GitHub Actions
-          CONTENT_CLOUD=$(base64 .github/workflows/commit-policy.yml | tr -d '\n')
-          gh api -X PUT /repos/$ORG_NAME/$REPO_NAME/contents/.github/workflows/commit-policy.yml \
-            -f message="chore: add cloud commit policy" -f content="$CONTENT_CLOUD" -f branch="main"
-
-          # 🚀 2. Sobe o seu script de trava local para a pasta .githooks/
           CONTENT_LOCAL=$(base64 .githooks/commit-msg | tr -d '\n')
           gh api -X PUT /repos/$ORG_NAME/$REPO_NAME/contents/.githooks/commit-msg \
             -f message="chore: add local git hook configuration" -f content="$CONTENT_LOCAL" -f branch="main"
 
-          # 🚀 3. Altera o README para ensinar o desenvolvedor a ativar a trava com 1 comando
           gh api -X GET /repos/$ORG_NAME/$REPO_NAME/contents/README.md -q '.content' | base64 -d > README.md
           echo -e "\n\n## 🛠️ Ativação das travas de Commit\nApós clonar o repositório, execute o comando abaixo no seu terminal para ativar a validação automática de commits:\n\`\`\`bash\ngit config core.hooksPath .githooks && chmod +x .githooks/commit-msg\n\`\`\`" >> README.md
           CONTENT_README=$(base64 README.md | tr -d '\n')
-          
-          # Pega o SHA atual do README para poder atualizá-lo
+
           SHA=$(gh api /repos/$ORG_NAME/$REPO_NAME/contents/README.md -q '.sha')
           gh api -X PUT /repos/$ORG_NAME/$REPO_NAME/contents/README.md \
             -f message="docs: update readme with hook instructions" -f content="$CONTENT_README" -f branch="main" -f sha="$SHA"
