@@ -27,10 +27,16 @@ jobs:
   create-repository:
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: write
-
     steps:
+      # 🔐 Token com permissão de ORGANIZAÇÃO (obrigatório)
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      # 🧼 Normaliza nome
       - name: Normalize names
         id: normalize
         run: |
@@ -42,6 +48,7 @@ jobs:
           REPO_NAME="COGIP_${PROJETO}"
           echo "repo_name=$REPO_NAME" >> $GITHUB_OUTPUT
 
+      # 🧪 valida nome
       - name: Validate repository name
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
@@ -52,9 +59,10 @@ jobs:
             exit 1
           fi
 
+      # 🏗️ cria repo (PRECISA GitHub App)
       - name: Create repository
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ORG_NAME: Cogip-AgSUS
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
@@ -64,9 +72,10 @@ jobs:
             --description "${{ github.event.inputs.descricao || 'Sem descrição' }}" \
             --add-readme
 
-      - name: Wait repository availability
+      # ⏳ espera propagação
+      - name: Wait repo availability
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ORG_NAME: Cogip-AgSUS
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
@@ -77,27 +86,28 @@ jobs:
             sleep 3
           done
 
-      - name: Create commit policy workflow (no clone, no push)
+      # 📄 cria workflow dentro do repo via API (sem clone)
+      - name: Create commit policy workflow
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ORG_NAME: Cogip-AgSUS
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
 
-          printf '%s\n' \
-            'name: Commit Policy' \
-            '' \
-            'on:' \
-            '  push:' \
-            '  pull_request:' \
-            '' \
-            'jobs:' \
-            '  validate:' \
-            '    runs-on: ubuntu-latest' \
-            '    steps:' \
-            '      - uses: actions/checkout@v4' \
-            '      - run: echo "validando commits..."' \
-            > commit-policy.yml
+          cat <<'EOF' > commit-policy.yml
+name: Commit Policy
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "validando commits..."
+EOF
 
           CONTENT=$(base64 commit-policy.yml | tr -d '\n')
 
