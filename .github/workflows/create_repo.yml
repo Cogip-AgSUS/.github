@@ -91,6 +91,8 @@ jobs:
           echo "✅ Repositório criado com sucesso"
           echo "📦 Nome: $REPO_NAME"
 
+          sleep 10
+
       - name: Clone new repo
         if: steps.check_repo.outputs.exists == 'false'
         env:
