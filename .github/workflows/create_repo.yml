@@ -97,21 +97,20 @@ jobs:
           owner: Cogip-AgSUS
           repositories: ${{ steps.normalize.outputs.repo_name }}
 
-      # 📄 cria workflow dentro do repo injetando a política via variável de ambiente
-      - name: Create commit policy workflow (no clone, no push)
+      # 📄 Prepara os arquivos de Políticas (Local e Nuvem)
+      - name: Inject Commit Policies (Local Hooks & GitHub Actions)
         env:
           GH_TOKEN: ${{ steps.app-token-write.outputs.token }}
           ORG_NAME: Cogip-AgSUS
-          # Guardamos toda a sua política aqui dentro. O YAML aceita qualquer indentação aqui.
-          WORKFLOW_CONTENT: |
-            name: Commit Policy
-
+          
+          # 1. CONTEÚDO DO GITHUB ACTIONS (Checagem na Nuvem)
+          CLOUD_WORKFLOW: |
+            name: Commit Policy (Cloud)
             on:
               push:
                 branches: [ "**" ]
               pull_request:
                 branches: [ "**" ]
-
             jobs:
               validate:
                 runs-on: ubuntu-latest
@@ -119,11 +118,9 @@ jobs:
                   - uses: actions/checkout@v4
                     with:
                       fetch-depth: 0
-
                   - name: Validate Commit Messages
                     run: |
                       CONVENTIONAL_COMMIT_REGEX='^(feat|fix|docs|style|refactor|test|chore|build|ci|perf|revert)(\([a-zA-Z0-9_.-]+\))?(!)?:\s.*$'
-                      
                       if [ "${{ '${{ github.event_name }}' }}" = "pull_request" ]; then
                         git fetch origin ${{ '${{ github.event.pull_request.base.ref }}' }} --depth=1000
                         COMMITS=$(git log --format=%s origin/${{ '${{ github.event.pull_request.base.ref }}' }}..HEAD)
@@ -134,62 +131,81 @@ jobs:
                           COMMITS=$(git log --format=%s ${{ '${{ github.event.before }}' }}..${{ '${{ github.event.after }}' }})
                         fi
                       fi
-
-                      if [ -z "$COMMITS" ]; then
-                        echo "✅ Nenhum commit novo para validar."
-                        exit 0
-                      fi
-
-                      FAILED=0
-
+                      if [ -z "$COMMITS" ]; then exit 0; fi
                       while read -r COMMIT_MSG; do
                         if [ -z "$COMMIT_MSG" ]; then continue; fi
-                        
                         if ! [[ "$COMMIT_MSG" =~ $CONVENTIONAL_COMMIT_REGEX ]]; then
-                          echo "❌ ERRO: A mensagem de commit não segue o formato padrão de Commits."
-                          echo "👉 Commit inválido encontrado: \"$COMMIT_MSG\""
-                          FAILED=1
+                          echo "❌ ERRO: Mensagem fora do padrão convencional: \"$COMMIT_MSG\""
+                          exit 1
                         fi
                       done <<< "$COMMITS"
 
-                      if [ $FAILED -ne 0 ]; then
-                        echo
-                        echo "O formato correto da mensagem de commit é obrigatório:"
-                        echo "  <tipo>(<escopo opcional>): <descrição>"
-                        echo
-                        echo "Os tipos válidos são:"
-                        echo "  feat:     Uma nova funcionalidade."
-                        echo "  fix:      Correção de um bug."
-                        echo "  docs:     Alterações na documentação."
-                        echo "  style:    Alterações de estilo de código (formatação, ponto-e-vírgula ausente, etc.)."
-                        echo "  refactor: Refatoração de código (nem corrige bug nem adiciona funcionalidade)."
-                        echo "  test:     Adicionar ou atualizar testes."
-                        echo "  chore:    Tarefas rotineiras como atualização de dependências ou ferramentas de build."
-                        echo "  build:    Alterações que afetam o sistema de build ou dependências externas."
-                        echo "  ci:       Alterações nos arquivos de configuração de CI ou scripts."
-                        echo "  perf:     Melhorias de desempenho."
-                        echo "  revert:   Reverter um commit anterior."
-                        echo
-                        echo "Exemplos:"
-                        echo "  feat(auth): adicionar funcionalidade"
-                        echo "  fix: corrigi bug"
-                        echo "  docs: atualizar instruções de instalação"
-                        echo
-                        exit 1
-                      fi
+          # 2. CONTEÚDO DO SEU SCRIPT (Checagem Local no Terminal)
+          LOCAL_HOOK: |
+            #!/bin/sh
+            COMMIT_MSG_FILE=$1
+            COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+            CONVENTIONAL_COMMIT_REGEX='^(feat|fix|docs|style|refactor|test|chore|build|ci|perf|revert)(\([a-zA-Z0-9_.-]+\))?(!)?:\s.*$'
 
-                      echo "✅ Todos os commits estão válidos!"
+            FAILED=0
+            
+            if ! [[ $COMMIT_MSG =~ $CONVENTIONAL_COMMIT_REGEX ]]; then
+                echo "❌ ERRO: A mensagem de commit não segue o formato padrão."
+                echo "O formato correto é obrigatório: <tipo>(<escopo opcional>): <descrição>"
+                echo "Tipos válidos: feat, fix, docs, style, refactor, test, chore, build, ci, perf, revert"
+                FAILED=1
+            fi
+            if [ $FAILED -ne 0 ]; then
+              echo
+              echo "O formato correto da mensagem de commit é obrigatório:"
+              echo "  <tipo>(<escopo opcional>): <descrição>"
+              echo
+              echo "Os tipos válidos são:"
+              echo "  feat:     Uma nova funcionalidade."
+              echo "  fix:      Correção de um bug."
+              echo "  docs:     Alterações na documentação."
+              echo "  style:    Alterações de estilo de código (formatação, ponto-e-vírgula ausente, etc.)."
+              echo "  refactor: Refatoração de código (nem corrige bug nem adiciona funcionalidade)."
+              echo "  test:     Adicionar ou atualizar testes."
+              echo "  chore:    Tarefas rotineiras como atualização de dependências ou ferramentas de build."
+              echo "  build:    Alterações que afetam o sistema de build ou dependências externas."
+              echo "  ci:       Alterações nos arquivos de configuração de CI ou scripts."
+              echo "  perf:     Melhorias de desempenho."
+              echo "  revert:   Reverter um commit anterior."
+              echo
+              echo "Exemplos:"
+              echo "  feat(auth): adicionar funcionalidade"
+              echo "  fix: corrigi bug"
+              echo "  docs: atualizar instruções de instalação"
+              echo
+              exit 1
+            fi
+            exit 0
+
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
           
-          echo "$WORKFLOW_CONTENT" > commit-policy.yml
+          # Criando os arquivos temporariamente no runner
+          mkdir -p .github/workflows .githooks
+          echo "$CLOUD_WORKFLOW" > .github/workflows/commit-policy.yml
+          echo "$LOCAL_HOOK" > .githooks/commit-msg
 
-          CONTENT=$(base64 commit-policy.yml | tr -d '\n')
+          # 🚀 1. Sobe o arquivo do GitHub Actions
+          CONTENT_CLOUD=$(base64 .github/workflows/commit-policy.yml | tr -d '\n')
+          gh api -X PUT /repos/$ORG_NAME/$REPO_NAME/contents/.github/workflows/commit-policy.yml \
+            -f message="chore: add cloud commit policy" -f content="$CONTENT_CLOUD" -f branch="main"
 
-          # Envia via API do GitHub para o repositório destino
-          gh api \
-            -X PUT \
-            /repos/$ORG_NAME/$REPO_NAME/contents/.github/workflows/commit-policy.yml \
-            -f message="chore: add commit policy" \
-            -f content="$CONTENT" \
-            -f branch="main"
+          # 🚀 2. Sobe o seu script de trava local para a pasta .githooks/
+          CONTENT_LOCAL=$(base64 .githooks/commit-msg | tr -d '\n')
+          gh api -X PUT /repos/$ORG_NAME/$REPO_NAME/contents/.githooks/commit-msg \
+            -f message="chore: add local git hook configuration" -f content="$CONTENT_LOCAL" -f branch="main"
+
+          # 🚀 3. Altera o README para ensinar o desenvolvedor a ativar a trava com 1 comando
+          gh api -X GET /repos/$ORG_NAME/$REPO_NAME/contents/README.md -q '.content' | base64 -d > README.md
+          echo -e "\n\n## 🛠️ Ativação das travas de Commit\nApós clonar o repositório, execute o comando abaixo no seu terminal para ativar a validação automática de commits:\n\`\`\`bash\ngit config core.hooksPath .githooks && chmod +x .githooks/commit-msg\n\`\`\`" >> README.md
+          CONTENT_README=$(base64 README.md | tr -d '\n')
+          
+          # Pega o SHA atual do README para poder atualizá-lo
+          SHA=$(gh api /repos/$ORG_NAME/$REPO_NAME/contents/README.md -q '.sha')
+          gh api -X PUT /repos/$ORG_NAME/$REPO_NAME/contents/README.md \
+            -f message="docs: update readme with hook instructions" -f content="$CONTENT_README" -f branch="main" -f sha="$SHA"
