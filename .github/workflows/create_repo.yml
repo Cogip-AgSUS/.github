@@ -7,6 +7,7 @@ on:
         description: "Nome do projeto"
         required: true
         type: string
+        
 
       visibility:
         description: "Visibilidade do repositório"
@@ -18,7 +19,7 @@ on:
           - public
           - internal
 
-          
+
       descricao:
         description: "Descrição do repositório"
         required: false
