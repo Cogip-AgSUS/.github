@@ -27,14 +27,11 @@ jobs:
   create-repository:
     runs-on: ubuntu-latest
 
-    steps:
-      - name: Generate GitHub App token
-        id: app-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+    permissions:
+      contents: write
+      repositories: write
 
+    steps:
       - name: Normalize names
         id: normalize
         run: |
@@ -56,63 +53,27 @@ jobs:
             exit 1
           fi
 
-          echo "✅ Nome válido"
-
-      - name: Check repository existence
-        id: check_repo
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          ORG_NAME: Cogip-AgSUS
-        run: |
-          REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
-          echo "🔎 Verificando $ORG_NAME/$REPO_NAME"
-
-          if gh api "/repos/$ORG_NAME/$REPO_NAME" >/dev/null 2>&1; then
-            echo "❌ Repositório já existe"
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "✅ Repositório disponível"
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Create repository
-        if: steps.check_repo.outputs.exists == 'false'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ORG_NAME: Cogip-AgSUS
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
 
           gh repo create "$ORG_NAME/$REPO_NAME" \
-            --${{ github.event.inputs.visibility }} \
+            --private \
             --description "${{ github.event.inputs.descricao || 'Sem descrição' }}" \
             --add-readme
 
-          echo "✅ Repositório criado com sucesso"
-          echo "📦 Nome: $REPO_NAME"
+          echo "repo=$REPO_NAME" >> $GITHUB_ENV
 
-          sleep 10
-
-      - name: Clone new repo
-        if: steps.check_repo.outputs.exists == 'false'
+      - name: Create commit policy workflow (no clone, no push)
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ORG_NAME: Cogip-AgSUS
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
-          git clone "https://x-access-token:${GH_TOKEN}@github.com/${ORG_NAME}/${REPO_NAME}.git" repo
-          cd repo
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
 
-      - name: Add commit policy workflow
-        if: steps.check_repo.outputs.exists == 'false'
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          ORG_NAME: Cogip-AgSUS
-        run: |
-          REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
-      
           cat <<'EOF' > commit-policy.yml
           name: Commit Policy
           
@@ -128,8 +89,10 @@ jobs:
                 - run: echo "validando commits..."
           EOF
           
-              gh api \
-                -X PUT \
-                /repos/$ORG_NAME/$REPO_NAME/contents/.github/workflows/commit-policy.yml \
-                -f message="chore: add commit policy" \
-                -f content="$(base64 commit-policy.yml | tr -d '\n')"
+                    CONTENT=$(base64 commit-policy.yml | tr -d '\n')
+          
+                    gh api \
+                      -X PUT \
+                      /repos/$ORG_NAME/$REPO_NAME/contents/.github/workflows/commit-policy.yml \
+                      -f message="chore: add commit policy" \
+                      -f content="$CONTENT"
