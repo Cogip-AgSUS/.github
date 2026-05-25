@@ -8,8 +8,6 @@ on:
         required: true
         type: string
 
-
-
       visibility:
         description: "Visibilidade do repositório"
         required: true
