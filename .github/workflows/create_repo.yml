@@ -7,7 +7,7 @@ on:
         description: "Nome do projeto"
         required: true
         type: string
-        
+
       visibility:
         description: "Visibilidade do repositório"
         required: true
@@ -17,7 +17,6 @@ on:
           - private
           - public
           - internal
-
 
       descricao:
         description: "Descrição do repositório"
@@ -45,13 +44,11 @@ jobs:
             | sed 's/[^a-z0-9-]//g')
 
           REPO_NAME="COGIP_${PROJETO}"
-
           echo "repo_name=$REPO_NAME" >> $GITHUB_OUTPUT
 
       - name: Validate repository name
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
-
           REGEX="^COGIP_[a-z0-9-]+$"
 
           if [[ ! "$REPO_NAME" =~ $REGEX ]]; then
@@ -60,7 +57,7 @@ jobs:
           fi
 
           echo "✅ Nome válido"
-          
+
       - name: Check repository existence
         id: check_repo
         env:
@@ -68,9 +65,8 @@ jobs:
           ORG_NAME: Cogip-AgSUS
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
-      
           echo "🔎 Verificando $ORG_NAME/$REPO_NAME"
-      
+
           if gh api "/repos/$ORG_NAME/$REPO_NAME" >/dev/null 2>&1; then
             echo "❌ Repositório já existe"
             echo "exists=true" >> $GITHUB_OUTPUT
@@ -78,7 +74,7 @@ jobs:
             echo "✅ Repositório disponível"
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
-    
+
       - name: Create repository
         if: steps.check_repo.outputs.exists == 'false'
         env:
@@ -86,23 +82,42 @@ jobs:
           ORG_NAME: Cogip-AgSUS
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
-      
+
           gh repo create "$ORG_NAME/$REPO_NAME" \
             --${{ github.event.inputs.visibility }} \
             --description "${{ github.event.inputs.descricao || 'Sem descrição' }}" \
             --add-readme
-            echo "✅ Repositório criado com sucesso"
-            echo "📦 Nome: ${{ steps.normalize.outputs.repo_name }}"
+
+          echo "✅ Repositório criado com sucesso"
+          echo "📦 Nome: $REPO_NAME"
+
+      - name: Clone new repo
+        if: steps.check_repo.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ORG_NAME: Cogip-AgSUS
+        run: |
+          REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/${ORG_NAME}/${REPO_NAME}.git" repo
+          cd repo
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
 
       - name: Add commit policy workflow
+        if: steps.check_repo.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
+          cd repo
           mkdir -p .github/workflows
-      
-          cat <<EOF > .github/workflows/commit-policy.yml
+
+          cat <<'EOF' > .github/workflows/commit-policy.yml
           name: Commit Policy
-      
-          on: [pull_request, push]
-      
+
+          on:
+            push:
+            pull_request:
+
           jobs:
             validate:
               runs-on: ubuntu-latest
@@ -110,7 +125,7 @@ jobs:
                 - uses: actions/checkout@v4
                 - run: echo "validando commits..."
           EOF
-      
-          git add .
+
+          git add .github/workflows/commit-policy.yml
           git commit -m "chore: add commit policy"
           git push
