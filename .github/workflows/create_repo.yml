@@ -60,7 +60,7 @@ jobs:
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
 
           gh repo create "$ORG_NAME/$REPO_NAME" \
-            --private \
+            --${{ github.event.inputs.visibility }} \
             --description "${{ github.event.inputs.descricao || 'Sem descrição' }}" \
             --add-readme
 
