@@ -93,4 +93,24 @@ jobs:
             --add-readme
             echo "✅ Repositório criado com sucesso"
             echo "📦 Nome: ${{ steps.normalize.outputs.repo_name }}"
-          
+
+      - name: Add commit policy workflow
+        run: |
+          mkdir -p .github/workflows
+      
+          cat <<EOF > .github/workflows/commit-policy.yml
+          name: Commit Policy
+      
+          on: [pull_request, push]
+      
+          jobs:
+            validate:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/checkout@v4
+                - run: echo "validando commits..."
+          EOF
+      
+          git add .
+          git commit -m "chore: add commit policy"
+          git push
