@@ -87,27 +87,27 @@ jobs:
           done
 
       # 📄 cria workflow dentro do repo via API (sem clone)
-      - name: Create commit policy workflow
+      - name: Create commit policy workflow (no clone, no push)
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ORG_NAME: Cogip-AgSUS
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
 
-          cat <<'EOF' > commit-policy.yml
-name: Commit Policy
-
-on:
-  push:
-  pull_request:
-
-jobs:
-  validate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: echo "validando commits..."
-EOF
+          printf '%s\n' \
+            'name: Commit Policy' \
+            '' \
+            'on:' \
+            '  push:' \
+            '  pull_request:' \
+            '' \
+            'jobs:' \
+            '  validate:' \
+            '    runs-on: ubuntu-latest' \
+            '    steps:' \
+            '      - uses: actions/checkout@v4' \
+            '      - run: echo "validando commits..."' \
+            > commit-policy.yml
 
           CONTENT=$(base64 commit-policy.yml | tr -d '\n')
 
