@@ -87,7 +87,7 @@ jobs:
             sleep 3
           done
 
-      # 🔐 Token 2: MODIFICADO. Força a quebra de cache e foca estritamente no novo repo
+      # 🔐 Token 2: Força a quebra de cache e foca estritamente no novo repo
       - name: Generate GitHub App token for workflow push
         id: app-token-write
         uses: actions/create-github-app-token@v1
@@ -95,34 +95,98 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: Cogip-AgSUS
-          repositories: ${{ steps.normalize.outputs.repo_name }} # <-- ISSO QUEBRA O CACHE E DA ACESSO AO REPO NOVO
+          repositories: ${{ steps.normalize.outputs.repo_name }}
 
-      # 📄 cria workflow dentro do repo via API usando o Token NOVO
+      # 📄 cria workflow dentro do repo injetando a política via variável de ambiente
       - name: Create commit policy workflow (no clone, no push)
         env:
           GH_TOKEN: ${{ steps.app-token-write.outputs.token }}
           ORG_NAME: Cogip-AgSUS
+          # Guardamos toda a sua política aqui dentro. O YAML aceita qualquer indentação aqui.
+          WORKFLOW_CONTENT: |
+            name: Commit Policy
+
+            on:
+              push:
+                branches: [ "**" ]
+              pull_request:
+                branches: [ "**" ]
+
+            jobs:
+              validate:
+                runs-on: ubuntu-latest
+                steps:
+                  - uses: actions/checkout@v4
+                    with:
+                      fetch-depth: 0
+
+                  - name: Validate Commit Messages
+                    run: |
+                      CONVENTIONAL_COMMIT_REGEX='^(feat|fix|docs|style|refactor|test|chore|build|ci|perf|revert)(\([a-zA-Z0-9_.-]+\))?(!)?:\s.*$'
+                      
+                      if [ "${{ '${{ github.event_name }}' }}" = "pull_request" ]; then
+                        git fetch origin ${{ '${{ github.event.pull_request.base.ref }}' }} --depth=1000
+                        COMMITS=$(git log --format=%s origin/${{ '${{ github.event.pull_request.base.ref }}' }}..HEAD)
+                      else
+                        if [ "${{ '${{ github.event.before }}' }}" = "0000000000000000000000000000000000000000" ]; then
+                          COMMITS=$(git log -1 --format=%s)
+                        else
+                          COMMITS=$(git log --format=%s ${{ '${{ github.event.before }}' }}..${{ '${{ github.event.after }}' }})
+                        fi
+                      fi
+
+                      if [ -z "$COMMITS" ]; then
+                        echo "✅ Nenhum commit novo para validar."
+                        exit 0
+                      fi
+
+                      FAILED=0
+
+                      while read -r COMMIT_MSG; do
+                        if [ -z "$COMMIT_MSG" ]; then continue; fi
+                        
+                        if ! [[ "$COMMIT_MSG" =~ $CONVENTIONAL_COMMIT_REGEX ]]; then
+                          echo "❌ ERRO: A mensagem de commit não segue o formato padrão de Commits."
+                          echo "👉 Commit inválido encontrado: \"$COMMIT_MSG\""
+                          FAILED=1
+                        fi
+                      done <<< "$COMMITS"
+
+                      if [ $FAILED -ne 0 ]; then
+                        echo
+                        echo "O formato correto da mensagem de commit é obrigatório:"
+                        echo "  <tipo>(<escopo opcional>): <descrição>"
+                        echo
+                        echo "Os tipos válidos são:"
+                        echo "  feat:     Uma nova funcionalidade."
+                        echo "  fix:      Correção de um bug."
+                        echo "  docs:     Alterações na documentação."
+                        echo "  style:    Alterações de estilo de código (formatação, ponto-e-vírgula ausente, etc.)."
+                        echo "  refactor: Refatoração de código (nem corrige bug nem adiciona funcionalidade)."
+                        echo "  test:     Adicionar ou atualizar testes."
+                        echo "  chore:    Tarefas rotineiras como atualização de dependências ou ferramentas de build."
+                        echo "  build:    Alterações que afetam o sistema de build ou dependências externas."
+                        echo "  ci:       Alterações nos arquivos de configuração de CI ou scripts."
+                        echo "  perf:     Melhorias de desempenho."
+                        echo "  revert:   Reverter um commit anterior."
+                        echo
+                        echo "Exemplos:"
+                        echo "  feat(auth): adicionar funcionalidade"
+                        echo "  fix: corrigi bug"
+                        echo "  docs: atualizar instruções de instalação"
+                        echo
+                        exit 1
+                      fi
+
+                      echo "✅ Todos os commits estão válidos!"
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
-
-          printf '%s\n' \
-            'name: Commit Policy' \
-            '' \
-            'on:' \
-            '  push:' \
-            '  pull_request:' \
-            '' \
-            'jobs:' \
-            '  validate:' \
-            '    runs-on: ubuntu-latest' \
-            '    steps:' \
-            '      - uses: actions/checkout@v4' \
-            '      - run: echo "validando commits..."' \
-            > commit-policy.yml
+          
+          echo "$WORKFLOW_CONTENT" > commit-policy.yml
 
           CONTENT=$(base64 commit-policy.yml | tr -d '\n')
 
-          # Enviando explicitamente para a branch padrão (main) criada pelo --add-readme
+          # Envia via API do GitHub para o repositório destino
           gh api \
             -X PUT \
             /repos/$ORG_NAME/$REPO_NAME/contents/.github/workflows/commit-policy.yml \
