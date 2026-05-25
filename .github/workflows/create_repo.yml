@@ -51,13 +51,14 @@ jobs:
             exit 1
           fi
 
-      # 🔐 Token 1: Criado para criar o repositório
+      # 🔐 Token 1: Criado no escopo global da Organização para a criação do repo
       - name: Generate GitHub App token for creation
         id: app-token-create
         uses: actions/create-github-app-token@v1
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: Cogip-AgSUS
 
       # 🏗️ cria repo
       - name: Create repository
@@ -86,13 +87,15 @@ jobs:
             sleep 3
           done
 
-      # 🔐 Token 2: GERADO NOVAMENTE para incluir o novo repositório no escopo
+      # 🔐 Token 2: MODIFICADO. Força a quebra de cache e foca estritamente no novo repo
       - name: Generate GitHub App token for workflow push
         id: app-token-write
         uses: actions/create-github-app-token@v1
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: Cogip-AgSUS
+          repositories: ${{ steps.normalize.outputs.repo_name }} # <-- ISSO QUEBRA O CACHE E DA ACESSO AO REPO NOVO
 
       # 📄 cria workflow dentro do repo via API usando o Token NOVO
       - name: Create commit policy workflow (no clone, no push)
@@ -119,8 +122,10 @@ jobs:
 
           CONTENT=$(base64 commit-policy.yml | tr -d '\n')
 
+          # Enviando explicitamente para a branch padrão (main) criada pelo --add-readme
           gh api \
             -X PUT \
             /repos/$ORG_NAME/$REPO_NAME/contents/.github/workflows/commit-policy.yml \
             -f message="chore: add commit policy" \
-            -f content="$CONTENT"
+            -f content="$CONTENT" \
+            -f branch="main"
