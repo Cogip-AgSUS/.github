@@ -28,14 +28,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 🔐 Token com permissão de ORGANIZAÇÃO (obrigatório)
-      - name: Generate GitHub App token
-        id: app-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-
       # 🧼 Normaliza nome
       - name: Normalize names
         id: normalize
@@ -59,10 +51,18 @@ jobs:
             exit 1
           fi
 
-      # 🏗️ cria repo (PRECISA GitHub App)
+      # 🔐 Token 1: Criado para criar o repositório
+      - name: Generate GitHub App token for creation
+        id: app-token-create
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      # 🏗️ cria repo
       - name: Create repository
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.app-token-create.outputs.token }}
           ORG_NAME: Cogip-AgSUS
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
@@ -75,7 +75,7 @@ jobs:
       # ⏳ espera propagação
       - name: Wait repo availability
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.app-token-create.outputs.token }}
           ORG_NAME: Cogip-AgSUS
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
@@ -86,10 +86,18 @@ jobs:
             sleep 3
           done
 
-      # 📄 cria workflow dentro do repo via API (sem clone)
+      # 🔐 Token 2: GERADO NOVAMENTE para incluir o novo repositório no escopo
+      - name: Generate GitHub App token for workflow push
+        id: app-token-write
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      # 📄 cria workflow dentro do repo via API usando o Token NOVO
       - name: Create commit policy workflow (no clone, no push)
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.app-token-write.outputs.token }}
           ORG_NAME: Cogip-AgSUS
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
