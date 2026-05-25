@@ -109,17 +109,17 @@ jobs:
         if: steps.check_repo.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ORG_NAME: Cogip-AgSUS
         run: |
-          cd repo
-          mkdir -p .github/workflows
-
-          cat <<'EOF' > .github/workflows/commit-policy.yml
+          REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
+      
+          cat <<'EOF' > commit-policy.yml
           name: Commit Policy
-
+          
           on:
             push:
             pull_request:
-
+          
           jobs:
             validate:
               runs-on: ubuntu-latest
@@ -127,7 +127,9 @@ jobs:
                 - uses: actions/checkout@v4
                 - run: echo "validando commits..."
           EOF
-
-          git add .github/workflows/commit-policy.yml
-          git commit -m "chore: add commit policy"
-          git push
+          
+              gh api \
+                -X PUT \
+                /repos/$ORG_NAME/$REPO_NAME/contents/.github/workflows/commit-policy.yml \
+                -f message="chore: add commit policy" \
+                -f content="$(base64 commit-policy.yml | tr -d '\n')"
