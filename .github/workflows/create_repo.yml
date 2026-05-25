@@ -29,7 +29,6 @@ jobs:
 
     permissions:
       contents: write
-      repositories: write
 
     steps:
       - name: Normalize names
@@ -67,6 +66,19 @@ jobs:
 
           echo "repo=$REPO_NAME" >> $GITHUB_ENV
 
+      - name: Wait repo availability
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ORG_NAME: Cogip-AgSUS
+        run: |
+          REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
+
+          for i in 1 2 3 4 5; do
+            gh api "/repos/$ORG_NAME/$REPO_NAME" && break
+            echo "aguardando repo..."
+            sleep 3
+          done
+
       - name: Create commit policy workflow (no clone, no push)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -74,25 +86,25 @@ jobs:
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
 
-          cat <<'EOF' > commit-policy.yml
-          name: Commit Policy
-          
-          on:
-            push:
-            pull_request:
-          
-          jobs:
-            validate:
-              runs-on: ubuntu-latest
-              steps:
-                - uses: actions/checkout@v4
-                - run: echo "validando commits..."
-          EOF
-          
-                    CONTENT=$(base64 commit-policy.yml | tr -d '\n')
-          
-                    gh api \
-                      -X PUT \
-                      /repos/$ORG_NAME/$REPO_NAME/contents/.github/workflows/commit-policy.yml \
-                      -f message="chore: add commit policy" \
-                      -f content="$CONTENT"
+          printf '%s\n' \
+            'name: Commit Policy' \
+            '' \
+            'on:' \
+            '  push:' \
+            '  pull_request:' \
+            '' \
+            'jobs:' \
+            '  validate:' \
+            '    runs-on: ubuntu-latest' \
+            '    steps:' \
+            '      - uses: actions/checkout@v4' \
+            '      - run: echo "validando commits..."' \
+            > commit-policy.yml
+
+          CONTENT=$(base64 commit-policy.yml | tr -d '\n')
+
+          gh api \
+            -X PUT \
+            /repos/$ORG_NAME/$REPO_NAME/contents/.github/workflows/commit-policy.yml \
+            -f message="chore: add commit policy" \
+            -f content="$CONTENT"
