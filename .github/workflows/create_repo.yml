@@ -92,6 +92,55 @@ jobs:
           owner: Cogip-AgSUS
           repositories: ${{ steps.normalize.outputs.repo_name }}
 
+      - name: Create Ruleset
+        env:
+          GH_TOKEN: ${{ steps.app-token-write.outputs.token }}
+          ORG_NAME: Cogip-AgSUS
+        run: |
+          REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
+
+          cat > ruleset.json <<EOF
+          {
+            "name": "Protect Default Branch",
+            "target": "branch",
+            "enforcement": "active",
+            "conditions": {
+              "ref_name": {
+                "include": ["~DEFAULT_BRANCH"],
+                "exclude": []
+              }
+            },
+            "rules": [
+              {
+                "type": "deletion"
+              },
+              {
+                "type": "non_fast_forward"
+              },
+              {
+                "type": "pull_request",
+                "parameters": {
+                  "required_approving_review_count": 1,
+                  "dismiss_stale_reviews_on_push": true,
+                  "require_code_owner_review": false,
+                  "require_last_push_approval": false,
+                  "required_review_thread_resolution": true
+                }
+              },
+              {
+                "type": "required_linear_history"
+              }
+            ],
+            "bypass_actors": []
+          }
+          EOF
+
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            /repos/$ORG_NAME/$REPO_NAME/rulesets \
+            --input ruleset.json
+
       - name: Inject Commit Policies
         env:
           GH_TOKEN: ${{ steps.app-token-write.outputs.token }}
