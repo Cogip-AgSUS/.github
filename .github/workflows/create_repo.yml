@@ -60,6 +60,7 @@ jobs:
           owner: Cogip-AgSUS
           
       - name: Create repository
+        id: create-repo
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ORG_NAME: Cogip-AgSUS
@@ -152,3 +153,14 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             /repos/$ORG_NAME/$REPO_NAME/rulesets \
             --input ruleset.json
+
+      - name: Rollback - Delete repository on failure
+        if: ${{ failure() && steps.create-repo.conclusion == 'success' }}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ORG_NAME: Cogip-AgSUS
+        run: |
+          REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
+          echo "Erro detectado em uma das etapas essenciais pós-criação."
+          echo "Deletando o repositório '$ORG_NAME/$REPO_NAME' para evitar um estado incompleto/inconsistente..."
+          gh repo delete "$ORG_NAME/$REPO_NAME" --yes
