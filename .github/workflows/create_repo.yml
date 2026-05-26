@@ -22,6 +22,8 @@ on:
         description: "Descrição do repositório"
         required: false
         type: string
+        
+permissions: {}
 
 jobs:
   create-repository:
