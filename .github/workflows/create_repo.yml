@@ -30,6 +30,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: Cogip-AgSUS
+          
       - name: Normalize names
         id: normalize
         run: |
@@ -41,23 +49,28 @@ jobs:
           REPO_NAME="COGIP_${PROJETO}"
           echo "repo_name=$REPO_NAME" >> $GITHUB_OUTPUT
 
-      - name: Validate repository name
+      - name: Validate repository name and existence
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ORG_NAME: Cogip-AgSUS
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
           REGEX="^COGIP_[a-z0-9-]+$"
 
+          # 1. Validação de Formato (Regex)
           if [[ ! "$REPO_NAME" =~ $REGEX ]]; then
-            echo "❌ Nome inválido: $REPO_NAME"
+            echo "❌ Erro: Nome inválido no padrão Regex: $REPO_NAME"
             exit 1
           fi
 
-      - name: Generate GitHub App token
-        id: app-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          owner: Cogip-AgSUS
+          # 2. Validação de Existência (Se o comando 'gh repo view' der certo, significa que o repo JÁ EXISTE)
+          echo "Verificando disponibilidade do nome..."
+          if gh repo view "$ORG_NAME/$REPO_NAME" > /dev/null 2>&1; then
+            echo "❌ Erro: O repositório '$ORG_NAME/$REPO_NAME' já existe nesta organização!"
+            exit 1
+          else
+            echo "✅ Nome '$REPO_NAME' está disponível para criação!"
+          fi
           
       - name: Create repository
         id: create-repo
