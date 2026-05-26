@@ -66,10 +66,10 @@ jobs:
           # 2. Validação de Existência (Se o comando 'gh repo view' der certo, significa que o repo JÁ EXISTE)
           echo "Verificando disponibilidade do nome..."
           if gh repo view "$ORG_NAME/$REPO_NAME" > /dev/null 2>&1; then
-            echo "❌ Erro: O repositório '$ORG_NAME/$REPO_NAME' já existe nesta organização!"
+            echo "Erro: O repositório '$ORG_NAME/$REPO_NAME' já existe nesta organização!"
             exit 1
           else
-            echo "✅ Nome '$REPO_NAME' está disponível para criação!"
+            echo "Nome '$REPO_NAME' está disponível para criação!"
           fi
           
       - name: Create repository
