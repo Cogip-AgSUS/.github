@@ -51,7 +51,6 @@ jobs:
             exit 1
           fi
 
-      # 🔐 ÚNICO TOKEN: Gerado uma vez para a Org, livre de problemas de sincronização
       - name: Generate GitHub App token
         id: app-token
         uses: actions/create-github-app-token@v1
@@ -72,11 +71,6 @@ jobs:
             --description "${{ github.event.inputs.descricao || 'Sem descrição' }}" \
             --add-readme
 
-      # ⏱️ Pausa de segurança para o repositório privado estabilizar no backend do GitHub
-      - name: Wait for Sychronization
-        run: sleep 10
-
-      # 1º: INJETA AS POLÍTICAS (Usando o Token estável)
       - name: Inject Commit Policies
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -115,8 +109,8 @@ jobs:
           gh api -X PUT /repos/$ORG_NAME/$REPO_NAME/contents/README.md \
             -f message="docs: update readme with hook instructions" -f content="$CONTENT_README" -f branch="main" -f sha="$SHA"
 
-      # 2º: CRIA O RULESET (Por último, trancando a branch de forma segura)
       - name: Create Ruleset
+        if: ${{ github.event.inputs.visibility == 'public' }}
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ORG_NAME: Cogip-AgSUS
