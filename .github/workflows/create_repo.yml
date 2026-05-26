@@ -51,8 +51,9 @@ jobs:
             exit 1
           fi
 
-      - name: Generate GitHub App token for creation
-        id: app-token-create
+      # 🔐 ÚNICO TOKEN: Gerado uma vez para a Org, livre de problemas de sincronização
+      - name: Generate GitHub App token
+        id: app-token
         uses: actions/create-github-app-token@v1
         with:
           app-id: ${{ secrets.APP_ID }}
@@ -61,7 +62,7 @@ jobs:
           
       - name: Create repository
         env:
-          GH_TOKEN: ${{ steps.app-token-create.outputs.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ORG_NAME: Cogip-AgSUS
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
@@ -71,34 +72,15 @@ jobs:
             --description "${{ github.event.inputs.descricao || 'Sem descrição' }}" \
             --add-readme
 
-      - name: Wait repo availability
-        env:
-          GH_TOKEN: ${{ steps.app-token-create.outputs.token }}
-          ORG_NAME: Cogip-AgSUS
-        run: |
-          REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
+      # ⏱️ Pausa de segurança para o repositório privado estabilizar no backend do GitHub
+      - name: Wait for Sychronization
+        run: sleep 10
 
-          for i in 1 2 3 4 5; do
-            gh api "/repos/$ORG_NAME/$REPO_NAME" && break
-            echo "aguardando repo..."
-            sleep 3
-          done
-
-      # 🔐 Token 2: Força a quebra de cache e foca estritamente no novo repo
-      - name: Generate GitHub App token for workflow push
-        id: app-token-write
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          owner: Cogip-AgSUS
-          repositories: ${{ steps.normalize.outputs.repo_name }}
-
+      # 1º: INJETA AS POLÍTICAS (Usando o Token estável)
       - name: Inject Commit Policies
         env:
-          GH_TOKEN: ${{ steps.app-token-write.outputs.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ORG_NAME: Cogip-AgSUS
-          
           LOCAL_HOOK: |
             #!/bin/sh
             COMMIT_MSG_FILE=$1
@@ -112,32 +94,9 @@ jobs:
                 FAILED=1
             fi
             if [ $FAILED -ne 0 ]; then
-              echo
-              echo "O formato correto da mensagem de commit é obrigatório:"
-              echo "  <tipo>(<escopo opcional>): <descrição>"
-              echo
-              echo "Os tipos válidos são:"
-              echo "  feat:     Uma nova funcionalidade."
-              echo "  fix:      Correção de um bug."
-              echo "  docs:     Alterações na documentação."
-              echo "  style:    Alterações de estilo de código (formatação, ponto-e-vírgula ausente, etc.)."
-              echo "  refactor: Refatoração de código (nem corrige bug nem adiciona funcionalidade)."
-              echo "  test:     Adicionar ou atualizar testes."
-              echo "  chore:    Tarefas rotineiras como atualização de dependências ou ferramentas de build."
-              echo "  build:    Alterações que afetam o sistema de build ou dependências externas."
-              echo "  ci:       Alterações nos arquivos de configuração de CI ou scripts."
-              echo "  perf:     Melhorias de desempenho."
-              echo "  revert:   Reverter um commit anterior."
-              echo
-              echo "Exemplos:"
-              echo "  feat(auth): adicionar funcionalidade"
-              echo "  fix: corrigi bug"
-              echo "  docs: atualizar instruções de instalação"
-              echo
               exit 1
             fi
             exit 0
-
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
           
@@ -156,9 +115,10 @@ jobs:
           gh api -X PUT /repos/$ORG_NAME/$REPO_NAME/contents/README.md \
             -f message="docs: update readme with hook instructions" -f content="$CONTENT_README" -f branch="main" -f sha="$SHA"
 
+      # 2º: CRIA O RULESET (Por último, trancando a branch de forma segura)
       - name: Create Ruleset
         env:
-          GH_TOKEN: ${{ steps.app-token-write.outputs.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ORG_NAME: Cogip-AgSUS
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
@@ -175,12 +135,8 @@ jobs:
               }
             },
             "rules": [
-              {
-                "type": "deletion"
-              },
-              {
-                "type": "non_fast_forward"
-              },
+              { "type": "deletion" },
+              { "type": "non_fast_forward" },
               {
                 "type": "pull_request",
                 "parameters": {
@@ -191,9 +147,7 @@ jobs:
                   "required_review_thread_resolution": true
                 }
               },
-              {
-                "type": "required_linear_history"
-              }
+              { "type": "required_linear_history" }
             ],
             "bypass_actors": []
           }
