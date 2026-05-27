@@ -388,11 +388,11 @@ jobs:
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
           
-          mkdir -p .github/PULL_REQUEST_TEMPLATE
+          mkdir -p .github
           
-          echo "$PR_TEMPLATE" > .github/PULL_REQUEST_TEMPLATE/pull_request_template.md
-          CONTENT_PR=$(base64 .github/PULL_REQUEST_TEMPLATE/pull_request_template.md | tr -d '\n')
-          gh api -X PUT /repos/$ORG_NAME/$REPO_NAME/contents/.github/PULL_REQUEST_TEMPLATE/pull_request_template.md \
+          echo "$PR_TEMPLATE" > .github/pull_request_template.md
+          CONTENT_PR=$(base64 .github/pull_request_template.md | tr -d '\n')
+          gh api -X PUT /repos/$ORG_NAME/$REPO_NAME/contents/.github/pull_request_template.md \
             -f message="chore: add pull request template" -f content="$CONTENT_PR" -f branch="main"
             
       - name: Create Ruleset
