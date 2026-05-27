@@ -122,50 +122,6 @@ jobs:
           gh api -X PUT /repos/$ORG_NAME/$REPO_NAME/contents/README.md \
             -f message="docs: update readme with hook instructions" -f content="$CONTENT_README" -f branch="main" -f sha="$SHA"
 
-      - name: Create Ruleset
-        if: ${{ github.event.inputs.visibility == 'public' }}
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          ORG_NAME: Cogip-AgSUS
-        run: |
-          REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
-
-          cat > ruleset.json <<EOF
-          {
-            "name": "Protect Default Branch",
-            "target": "branch",
-            "enforcement": "active",
-            "conditions": {
-              "ref_name": {
-                "include": ["~DEFAULT_BRANCH"],
-                "exclude": []
-              }
-            },
-            "rules": [
-              { "type": "deletion" },
-              { "type": "non_fast_forward" },
-              {
-                "type": "pull_request",
-                "parameters": {
-                  "required_approving_review_count": 1,
-                  "dismiss_stale_reviews_on_push": true,
-                  "require_code_owner_review": false,
-                  "require_last_push_approval": false,
-                  "required_review_thread_resolution": true
-                }
-              },
-              { "type": "required_linear_history" }
-            ],
-            "bypass_actors": []
-          }
-          EOF
-
-          gh api \
-            --method POST \
-            -H "Accept: application/vnd.github+json" \
-            /repos/$ORG_NAME/$REPO_NAME/rulesets \
-            --input ruleset.json
-
       - name: Inject Issue Templates
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -227,6 +183,50 @@ jobs:
             -f message="chore: add feature request issue template" \
             -f content="$CONTENT_FEATURE" \
             -f branch="main"
+            
+      - name: Create Ruleset
+        if: ${{ github.event.inputs.visibility == 'public' }}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ORG_NAME: Cogip-AgSUS
+        run: |
+          REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
+
+          cat > ruleset.json <<EOF
+          {
+            "name": "Protect Default Branch",
+            "target": "branch",
+            "enforcement": "active",
+            "conditions": {
+              "ref_name": {
+                "include": ["~DEFAULT_BRANCH"],
+                "exclude": []
+              }
+            },
+            "rules": [
+              { "type": "deletion" },
+              { "type": "non_fast_forward" },
+              {
+                "type": "pull_request",
+                "parameters": {
+                  "required_approving_review_count": 1,
+                  "dismiss_stale_reviews_on_push": true,
+                  "require_code_owner_review": false,
+                  "require_last_push_approval": false,
+                  "required_review_thread_resolution": true
+                }
+              },
+              { "type": "required_linear_history" }
+            ],
+            "bypass_actors": []
+          }
+          EOF
+
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            /repos/$ORG_NAME/$REPO_NAME/rulesets \
+            --input ruleset.json
 
       - name: Rollback - Delete repository on failure
         if: ${{ failure() && steps.create-repo.conclusion == 'success' }}
