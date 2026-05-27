@@ -126,64 +126,199 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ORG_NAME: Cogip-AgSUS
-
+  
           BUG_TEMPLATE: |
             ---
             name: "Relato de Bug"
             about: "Crie um relatório para nos ajudar a identificar e corrigir um problema."
-            title: "[BUG]: "
+            title: "[BUG]: <titulo>"
             labels: ["bug", "triage"]
             ---
-
-            Uma descrição clara e concisa do que é o problema.
-            
-            Passos para reproduzir o comportamento:
-            1. Vá para '...'
-            2. Clique em '....'
-            3. Role a página até '...'
-            4. Veja o erro
-            
-            Uma descrição clara do que você esperava que acontecesse.
-            
-            Se aplicável, adicione prints de tela ou cole os logs do erro aqui.
-
+            body:
+              - type: textarea
+                id: description
+                attributes:
+                  label: "Descrição"
+                  description: Uma descrição clara e concisa do que é o problema.
+                  placeholder: Descrição breve e explícita do seu incidente...
+                validations:
+                  required: true
+              - type: textarea
+                id: reprod
+                attributes:
+                  label: "Passos de reprodução"
+                  description: Passos para reproduzir o comportamento
+                  value: |
+                    1. Vá para '...'
+                    2. Clique em '....'
+                    3. Role a página até '...'
+                    4. Veja o erro
+                  render: bash
+                validations:
+                  required: true
+              - type: textarea
+                id: screenshot
+                attributes:
+                  label: "Screenshots"
+                  description: Se aplicável, adicione prints de tela ou cole os logs do erro aqui.
+                  value: |
+                    ![DESCRIÇÃO](LINK.png)
+                  render: bash
+                validations:
+                  required: false
+              - type: textarea
+                id: logs
+                attributes:
+                  label: "Logs"
+                  description: Por favor copie e cole qualquer log relevante. O log vai ser automaticamente formatado em código, então não precisa usar crases.
+                  render: bash
+                validations:
+                  required: false
+              - type: dropdown
+                id: navegadores
+                attributes:
+                  label: "Navegadores"
+                  description: Qual navegador você está vendo o problema?
+                  multiple: true
+                  options:
+                    - Firefox
+                    - Chrome
+                    - Safari
+                    - Microsoft Edge
+                    - Opera
+                validations:
+                  required: false
+              - type: dropdown
+                id: os
+                attributes:
+                  label: "Sistema Operacional"
+                  description: Qual é o seu sistema operacional ?
+                  multiple: true
+                  options:
+                    - Windows
+                    - Linux
+                    - Mac
+                validations:
+                  required: false
+  
           FEATURE_TEMPLATE: |
             ---
             name: "Nova Funcionalidade"
             about: "Sugira uma ideia ou melhoria para este projeto."
-            title: "[FEATURE]: "
+            title: "[FEATURE]: <titulo>"
             labels: ["enhancement"]
             ---
-            
-            Uma descrição clara e concisa de qual é o problema (ex: Preciso que o sistema faça...)
-            
-            Uma descrição clara e concisa do que você quer que aconteça.
-            
-            Uma descrição clara e concisa de quaisquer soluções ou recursos alternativos que você considerou.
-            
-            Adicione qualquer outro contexto ou prints sobre a sugestão de recurso aqui.
-
+            body:
+              - type: textarea
+                id: problem
+                attributes:
+                  label: "Qual problema você está tentando resolver?"
+                  description: Uma descrição clara e concisa de qual é o problema ou necessidade.
+                  placeholder: Ex: Preciso que o sistema faça tal ação de forma automática pois hoje leva muito tempo...
+                validations:
+                  required: true
+              - type: textarea
+                id: solution
+                attributes:
+                  label: "Solução Desejada"
+                  description: Uma descrição clara e concisa do que você quer que aconteça.
+                  placeholder: Ex: Eu gostaria que houvesse um botão para exportar o relatório diretamente em PDF...
+                validations:
+                  required: true
+              - type: textarea
+                id: alternatives
+                attributes:
+                  label: "Alternativas Consideradas"
+                  description: Uma descrição clara e concisa de quaisquer soluções ou recursos alternativos que você considerou.
+                  placeholder: Ex: Atualmente estamos extraindo os dados via API e montando no Excel, mas o ideal seria...
+                validations:
+                  required: false
+              - type: textarea
+                id: context
+                attributes:
+                  label: "Contexto Adicional / Prints"
+                  description: Adicione qualquer outro contexto, mockups ou prints sobre a sugestão de recurso aqui.
+                validations:
+                  required: false
+  
+          DOC_TEMPLATE: |
+            ---
+            name: "Melhoria de Documentação"
+            about: "Proponha correções ou melhorias nos arquivos de ajuda, README ou guias."
+            title: "[DOC]: <titulo>"
+            labels: ["documentation"]
+            ---
+            body:
+              - type: textarea
+                id: doc_problem
+                attributes:
+                  label: "Onde está o problema na documentação?"
+                  description: Link para o arquivo/página ou descrição de onde a informação está incorreta, desatualizada ou confusa.
+                  placeholder: Ex: No arquivo README.md, a seção de instalação está com o comando quebrado...
+                validations:
+                  required: true
+              - type: textarea
+                id: doc_suggestion
+                attributes:
+                  label: "O que deve ser alterado/adicionado?"
+                  description: Descreva a melhoria que você sugere para o texto.
+                  placeholder: Ex: Substituir o comando 'npm run text' por 'npm run test'...
+                validations:
+                  required: true
+  
+          SUPPORT_TEMPLATE: |
+            ---
+            name: "Dúvida ou Suporte"
+            about: "Precisa de ajuda para usar o projeto ou tem alguma dúvida técnica?"
+            title: "[SUPPORT]: <titulo>"
+            labels: ["question"]
+            ---
+            body:
+              - type: textarea
+                id: question
+                attributes:
+                  label: "Qual é a sua dúvida?"
+                  description: Descreva detalhadamente o que você está tentando fazer e onde encontrou dificuldades.
+                  placeholder: Ex: Estou tentando integrar o componente X com o banco de dados Y, mas não entendi como passar as credenciais...
+                validations:
+                  required: true
+              - type: textarea
+                id: attempts
+                attributes:
+                  label: "O que você já tentou?"
+                  description: Se aplicável, descreva quais soluções ou abordagens você já testou antes de abrir esta issue.
+                validations:
+                  required: false
+  
         run: |
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
           
           mkdir -p .github/ISSUE_TEMPLATE
           
-          echo "$BUG_TEMPLATE" > .github/ISSUE_TEMPLATE/bug_report.md
-          CONTENT_BUG=$(base64 .github/ISSUE_TEMPLATE/bug_report.md | tr -d '\n')
-          
-          gh api -X PUT /repos/$ORG_NAME/$REPO_NAME/contents/.github/ISSUE_TEMPLATE/bug_report.md \
-            -f message="chore: add bug report issue template" \
-            -f content="$CONTENT_BUG" \
-            -f branch="main"
-
-          echo "$FEATURE_TEMPLATE" > .github/ISSUE_TEMPLATE/feature_request.md
-          CONTENT_FEATURE=$(base64 .github/ISSUE_TEMPLATE/feature_request.md | tr -d '\n')
-          
-          gh api -X PUT /repos/$ORG_NAME/$REPO_NAME/contents/.github/ISSUE_TEMPLATE/feature_request.md \
-            -f message="chore: add feature request issue template" \
-            -f content="$CONTENT_FEATURE" \
-            -f branch="main"
-            
+          # 1. Bug Report
+          echo "$BUG_TEMPLATE" > .github/ISSUE_TEMPLATE/bug_report.yml
+          CONTENT_BUG=$(base64 .github/ISSUE_TEMPLATE/bug_report.yml | tr -d '\n')
+          gh api -X PUT /repos/$ORG_NAME/$REPO_NAME/contents/.github/ISSUE_TEMPLATE/bug_report.yml \
+            -f message="chore: add bug report issue template" -f content="$CONTENT_BUG" -f branch="main"
+  
+          # 2. Feature Request
+          echo "$FEATURE_TEMPLATE" > .github/ISSUE_TEMPLATE/feature_request.yml
+          CONTENT_FEATURE=$(base64 .github/ISSUE_TEMPLATE/feature_request.yml | tr -d '\n')
+          gh api -X PUT /repos/$ORG_NAME/$REPO_NAME/contents/.github/ISSUE_TEMPLATE/feature_request.yml \
+            -f message="chore: add feature request issue template" -f content="$CONTENT_FEATURE" -f branch="main"
+  
+          # 3. Documentation Request
+          echo "$DOC_TEMPLATE" > .github/ISSUE_TEMPLATE/documentation.yml
+          CONTENT_DOC=$(base64 .github/ISSUE_TEMPLATE/documentation.yml | tr -d '\n')
+          gh api -X PUT /repos/$ORG_NAME/$REPO_NAME/contents/.github/ISSUE_TEMPLATE/documentation.yml \
+            -f message="chore: add documentation issue template" -f content="$CONTENT_DOC" -f branch="main"
+  
+          # 4. Support/Question Request
+          echo "$SUPPORT_TEMPLATE" > .github/ISSUE_TEMPLATE/support.yml
+          CONTENT_SUPPORT=$(base64 .github/ISSUE_TEMPLATE/support.yml | tr -d '\n')
+          gh api -X PUT /repos/$ORG_NAME/$REPO_NAME/contents/.github/ISSUE_TEMPLATE/support.yml \
+            -f message="chore: add support issue template" -f content="$CONTENT_SUPPORT" -f branch="main"
+              
       - name: Create Ruleset
         if: ${{ github.event.inputs.visibility == 'public' }}
         env:
