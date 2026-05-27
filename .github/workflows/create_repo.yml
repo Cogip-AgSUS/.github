@@ -58,7 +58,7 @@ jobs:
 
           # 1. Validação de Formato (Regex)
           if [[ ! "$REPO_NAME" =~ $REGEX ]]; then
-            echo "❌ Erro: Nome inválido no padrão Regex: $REPO_NAME"
+            echo "Erro: Nome inválido no padrão Regex: $REPO_NAME"
             exit 1
           fi
 
@@ -210,7 +210,7 @@ jobs:
                 attributes:
                   label: "Qual problema você está tentando resolver?"
                   description: Uma descrição clara e concisa de qual é o problema ou necessidade.
-                  placeholder: Ex: Preciso que o sistema faça tal ação de forma automática pois hoje leva muito tempo...
+                  placeholder: "Ex: Preciso que o sistema faça tal ação de forma automática pois..."
                 validations:
                   required: true
               - type: textarea
@@ -218,7 +218,7 @@ jobs:
                 attributes:
                   label: "Solução Desejada"
                   description: Uma descrição clara e concisa do que você quer que aconteça.
-                  placeholder: Ex: Eu gostaria que houvesse um botão para exportar o relatório diretamente em PDF...
+                  placeholder: "Ex: Eu gostaria que houvesse um botão para exportar o estado do painel..."
                 validations:
                   required: true
               - type: textarea
@@ -226,7 +226,7 @@ jobs:
                 attributes:
                   label: "Alternativas Consideradas"
                   description: Uma descrição clara e concisa de quaisquer soluções ou recursos alternativos que você considerou.
-                  placeholder: Ex: Atualmente estamos extraindo os dados via API e montando no Excel, mas o ideal seria...
+                  placeholder: "Ex: Atualmente estamos extraindo os dados via API e montando no Excel, mas o ideal seria..."
                 validations:
                   required: false
               - type: textarea
@@ -248,7 +248,7 @@ jobs:
                 attributes:
                   label: "Onde está o problema na documentação?"
                   description: Link para o arquivo/página ou descrição de onde a informação está incorreta, desatualizada ou confusa.
-                  placeholder: Ex: No arquivo README.md, a seção de instalação está com o comando quebrado...
+                  placeholder: "Ex: No arquivo README.md, a seção de instalação está com o comando quebrado..."
                 validations:
                   required: true
               - type: textarea
@@ -256,7 +256,7 @@ jobs:
                 attributes:
                   label: "O que deve ser alterado/adicionado?"
                   description: Descreva a melhoria que você sugere para o texto.
-                  placeholder: Ex: Substituir o comando 'npm run text' por 'npm run test'...
+                  placeholder: "Ex: Substituir o comando 'npm run text' por 'npm run test'..."
                 validations:
                   required: true
   
@@ -271,7 +271,7 @@ jobs:
                 attributes:
                   label: "Qual é a sua dúvida?"
                   description: Descreva detalhadamente o que você está tentando fazer e onde encontrou dificuldades.
-                  placeholder: Ex: Estou tentando integrar o componente X com o banco de dados Y, mas não entendi como passar as credenciais...
+                  placeholder: "Ex: Estou tentando integrar o componente X com o banco de dados Y, mas não entendi como..."
                 validations:
                   required: true
               - type: textarea
@@ -286,26 +286,22 @@ jobs:
           REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
           
           mkdir -p .github/ISSUE_TEMPLATE
-          
-          # 1. Bug Report
+
           echo "$BUG_TEMPLATE" > .github/ISSUE_TEMPLATE/bug_report.yml
           CONTENT_BUG=$(base64 .github/ISSUE_TEMPLATE/bug_report.yml | tr -d '\n')
           gh api -X PUT /repos/$ORG_NAME/$REPO_NAME/contents/.github/ISSUE_TEMPLATE/bug_report.yml \
             -f message="chore: add bug report issue template" -f content="$CONTENT_BUG" -f branch="main"
-  
-          # 2. Feature Request
+
           echo "$FEATURE_TEMPLATE" > .github/ISSUE_TEMPLATE/feature_request.yml
           CONTENT_FEATURE=$(base64 .github/ISSUE_TEMPLATE/feature_request.yml | tr -d '\n')
           gh api -X PUT /repos/$ORG_NAME/$REPO_NAME/contents/.github/ISSUE_TEMPLATE/feature_request.yml \
             -f message="chore: add feature request issue template" -f content="$CONTENT_FEATURE" -f branch="main"
-  
-          # 3. Documentation Request
+
           echo "$DOC_TEMPLATE" > .github/ISSUE_TEMPLATE/documentation.yml
           CONTENT_DOC=$(base64 .github/ISSUE_TEMPLATE/documentation.yml | tr -d '\n')
           gh api -X PUT /repos/$ORG_NAME/$REPO_NAME/contents/.github/ISSUE_TEMPLATE/documentation.yml \
             -f message="chore: add documentation issue template" -f content="$CONTENT_DOC" -f branch="main"
-  
-          # 4. Support/Question Request
+
           echo "$SUPPORT_TEMPLATE" > .github/ISSUE_TEMPLATE/support.yml
           CONTENT_SUPPORT=$(base64 .github/ISSUE_TEMPLATE/support.yml | tr -d '\n')
           gh api -X PUT /repos/$ORG_NAME/$REPO_NAME/contents/.github/ISSUE_TEMPLATE/support.yml \
