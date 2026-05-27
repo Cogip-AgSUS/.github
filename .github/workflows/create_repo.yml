@@ -86,7 +86,7 @@ jobs:
 
       - name: Inject Commit Policies
         env:
-          GH_TOKEN: ${{ steps.app-token-write.outputs.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ORG_NAME: Cogip-AgSUS
           
           LOCAL_HOOK: |
