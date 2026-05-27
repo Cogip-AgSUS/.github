@@ -128,12 +128,10 @@ jobs:
           ORG_NAME: Cogip-AgSUS
   
           BUG_TEMPLATE: |
-            ---
             name: "Relato de Bug"
-            about: "Crie um relatório para nos ajudar a identificar e corrigir um problema."
+            description: "Crie um relatório para nos ajudar a identificar e corrigir um problema."
             title: "[BUG]: <titulo>"
             labels: ["bug", "triage"]
-            ---
             body:
               - type: textarea
                 id: description
@@ -202,12 +200,10 @@ jobs:
                   required: false
   
           FEATURE_TEMPLATE: |
-            ---
             name: "Nova Funcionalidade"
-            about: "Sugira uma ideia ou melhoria para este projeto."
+            description: "Sugira uma ideia ou melhoria para este projeto."
             title: "[FEATURE]: <titulo>"
             labels: ["enhancement"]
-            ---
             body:
               - type: textarea
                 id: problem
@@ -242,12 +238,10 @@ jobs:
                   required: false
   
           DOC_TEMPLATE: |
-            ---
             name: "Melhoria de Documentação"
-            about: "Proponha correções ou melhorias nos arquivos de ajuda, README ou guias."
+            description: "Proponha correções ou melhorias nos arquivos de ajuda, README ou guias."
             title: "[DOC]: <titulo>"
             labels: ["documentation"]
-            ---
             body:
               - type: textarea
                 id: doc_problem
@@ -267,12 +261,10 @@ jobs:
                   required: true
   
           SUPPORT_TEMPLATE: |
-            ---
             name: "Dúvida ou Suporte"
-            about: "Precisa de ajuda para usar o projeto ou tem alguma dúvida técnica?"
+            description: "Precisa de ajuda para usar o projeto ou tem alguma dúvida técnica?"
             title: "[SUPPORT]: <titulo>"
             labels: ["question"]
-            ---
             body:
               - type: textarea
                 id: question
