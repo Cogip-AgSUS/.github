@@ -166,6 +166,68 @@ jobs:
             /repos/$ORG_NAME/$REPO_NAME/rulesets \
             --input ruleset.json
 
+      - name: Inject Issue Templates
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ORG_NAME: Cogip-AgSUS
+
+          BUG_TEMPLATE: |
+            ---
+            name: "Relato de Bug"
+            description: "Crie um relatório para nos ajudar a identificar e corrigir um problema."
+            title: "[BUG]: "
+            labels: ["bug", "triage"]
+            ---
+
+            Uma descrição clara e concisa do que é o problema.
+            
+            Passos para reproduzir o comportamento:
+            1. Vá para '...'
+            2. Clique em '....'
+            3. Role a página até '...'
+            4. Veja o erro
+            
+            Uma descrição clara do que você esperava que acontecesse.
+            
+            Se aplicável, adicione prints de tela ou cole os logs do erro aqui.
+
+          FEATURE_TEMPLATE: |
+            ---
+            name: "Nova Funcionalidade"
+            description: "Sugira uma ideia ou melhoria para este projeto."
+            title: "[FEATURE]: "
+            labels: ["enhancement"]
+            ---
+            
+            Uma descrição clara e concisa de qual é o problema (ex: Preciso que o sistema faça...)
+            
+            Uma descrição clara e concisa do que você quer que aconteça.
+            
+            Uma descrição clara e concisa de quaisquer soluções ou recursos alternativos que você considerou.
+            
+            Adicione qualquer outro contexto ou prints sobre a sugestão de recurso aqui.
+
+        run: |
+          REPO_NAME="${{ steps.normalize.outputs.repo_name }}"
+          
+          mkdir -p .github/ISSUE_TEMPLATE
+          
+          echo "$BUG_TEMPLATE" > .github/ISSUE_TEMPLATE/bug_report.md
+          CONTENT_BUG=$(base64 .github/ISSUE_TEMPLATE/bug_report.md | tr -d '\n')
+          
+          gh api -X PUT /repos/$ORG_NAME/$REPO_NAME/contents/.github/ISSUE_TEMPLATE/bug_report.md \
+            -f message="chore: add bug report issue template" \
+            -f content="$CONTENT_BUG" \
+            -f branch="main"
+
+          echo "$FEATURE_TEMPLATE" > .github/ISSUE_TEMPLATE/feature_request.md
+          CONTENT_FEATURE=$(base64 .github/ISSUE_TEMPLATE/feature_request.md | tr -d '\n')
+          
+          gh api -X PUT /repos/$ORG_NAME/$REPO_NAME/contents/.github/ISSUE_TEMPLATE/feature_request.md \
+            -f message="chore: add feature request issue template" \
+            -f content="$CONTENT_FEATURE" \
+            -f branch="main"
+
       - name: Rollback - Delete repository on failure
         if: ${{ failure() && steps.create-repo.conclusion == 'success' }}
         env:
