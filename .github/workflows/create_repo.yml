@@ -368,9 +368,8 @@ jobs:
             
             ---
             
-            ### Checklist de Qualidade (DoD)
+            ### Checklist de Qualidade
             _Antes de solicitar o Code Review, certifique-se de cumprir os requisitos abaixo:_
-            - [ ] O código segue estritamente os padrões de lint e estilo do projeto.
             - [ ] Fiz uma auto-revisão detalhada do meu próprio código buscando redundâncias.
             - [ ] Não foram deixados `console.log` ou códigos de debug comentados.
             - [ ] Adicionei documentação ou comentários explicativos em trechos complexos.
